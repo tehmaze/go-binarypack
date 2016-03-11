@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"time"
 )
 
 type BinaryPack struct {
@@ -125,6 +126,8 @@ func (b *BinaryPack) Marshal(v interface{}) error {
 			b.cursor.write(t)
 		}
 		return nil
+	case time.Time:
+		return b.Marshal(t.Format("Mon Jan 02 2006 15:04:05") + " GMT" + t.Format("-0700 (MST)"))
 	default:
 		switch reflect.TypeOf(t).Kind() {
 		case reflect.Slice:
