@@ -7,75 +7,79 @@ import (
 	"testing"
 )
 
+type teststruct struct {
+	Int    int    `binarypack:"int"`
+	Int8   int    `binarypack:"fixint"`
+	Int16  int16  `binarypack:"int6"`
+	Int32  int32  `binarypack:"int32"`
+	Int64  int64  `binarypack:"int64"`
+	Uint   uint   `binarypack:"uint"`
+	Uint16 uint16 `binarypack:"uint16"`
+	Uint32 uint32 `binarypack:"uint32"`
+	Uint64 uint64 `binarypack:"uint64"`
+}
+
 var tests = []struct {
 	name string
-	test []byte
-	want interface{}
+	test interface{}
+	want []byte
 }{
-	// Small value integer
-	{"small int", []byte{0x00}, 0},
-	{"small int", []byte{0x7f}, 127},
-	// Small bytes (raw),
-	{"small raw", []byte{0xa2, 0x17, 0x2a}, []byte{0x17, 0x2a}},
-	// Small string
-	{"small string", []byte{0xb6, 0x67, 0x6f, 0x70, 0x68, 0x65, 0x72}, "gopher"},
-	// Array
-	{"small array", []byte{0x92, 0x17, 0x2a}, []interface{}{23, 42}},
-	// Map
-	{"small map", []byte{0x81, 0x17, 0x2a}, map[interface{}]interface{}{23: 42}},
-	// nil
-	{"nil", []byte{0xc0}, nil},
-	// Bool
-	{"false", []byte{0xc2}, false},
-	{"true", []byte{0xc3}, true},
-	// Float
-	{"float", []byte{0xca, 0x00, 0x00, 0x00, 0x00}, float32(0.0)},
-	{"float", []byte{0xca, 0x12, 0x34, 0x56, 0x78}, float32(5.6904566e-28)},
-	// Comparing NaN to NaN is always false, skip test
-	//{[]byte{0xca, 0xff, 0xff, 0xff, 0xff}, float32(math.NaN())},
-	{"double", []byte{0xcb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, float64(0.0)},
-	{"double", []byte{0xcb, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xff}, float64(5.626349274901213e-221)},
-	{"uint8", []byte{0xcc, 0x2a}, uint8(42)},
-	{"uint16", []byte{0xcd, 0x7a, 0x69}, uint16(31337)},
-	{"uint32", []byte{0xce, 0x21, 0x16, 0x83, 0x00}, uint32(555123456)},
-	{"uint64", []byte{0xcf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, uint64(math.MaxUint64)},
-	{"int8", []byte{0xd0, 0x17}, int8(23)},
-	{"int16", []byte{0xd1, 0x7a, 0x69}, int16(31337)},
-	{"int16", []byte{0xd1, 0xe5, 0xf5}, int16(-6667)},
-	{"int32", []byte{0xd2, 0x21, 0x16, 0x83, 0x00}, int32(555123456)},
-	{"int64", []byte{0xd3, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, int64(-1)},
-	// Longer strings
-	{"string", []byte{0xd8, 0x00, 0x17, 0x6c, 0x65, 0x74, 0x27, 0x73, 0x20, 0x67, 0x6f, 0x20, 0x67, 0x6f, 0x70, 0x68, 0x65, 0x72, 0x20, 0x68, 0x75, 0x6e, 0x74, 0x69, 0x6e, 0x67}, "let's go gopher hunting"},
-	// Longer bytes
-	{"raw", []byte{0xda, 0x00, 0x17, 0x6c, 0x65, 0x74, 0x27, 0x73, 0x20, 0x67, 0x6f, 0x20, 0x67, 0x6f, 0x70, 0x68, 0x65, 0x72, 0x20, 0x68, 0x75, 0x6e, 0x74, 0x69, 0x6e, 0x67}, []byte("let's go gopher hunting")},
-	{"array", []byte{0xdc, 0x0, 0x11, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x10, 0x11}, []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}},
-	// Can't test large maps here, because map order is undefined
+	//{"Nil", nil, []byte{Nil}},
+	{"False", false, []byte{False}},
+	{"True", true, []byte{True}},
+	{"FixInt", 42, []byte{42}},
+	//{"FixNeg", -23, []byte{0xff}},
+	{"FixRaw", []byte("gopher"), []byte("\xa6gopher")},
+	{"FixString", "gopher", []byte("\xb6gopher")},
 }
 
 func TestMarshal(t *testing.T) {
 	for _, test := range tests {
-		b := New(nil)
-		if err := b.Marshal(test.want); err != nil {
-			t.Fatal(err)
+		got, err := Marshal(test.test)
+		if err != nil {
+			t.Fatalf("%s: %v\n", test.name, err)
 		}
-		if !bytes.Equal(test.test, b.Bytes()) {
-			t.Fatalf("%s: expected %v, got %v", test.name, test.test, b.Bytes())
+		if bytes.Equal(got, test.want) {
+			t.Logf("%s: ok\n", test.name)
+		} else {
+			t.Fatalf("%s: expected %v, got %v", test.name, test.want, got)
 		}
 	}
 }
 
 func TestUnmarshal(t *testing.T) {
+
 	for _, test := range tests {
-		b := New(test.test)
-		n, err := b.UnmarshalNext()
-		if err != nil {
-			t.Fatalf("%s: %v", test.name, err)
+		var got = reflect.New(reflect.TypeOf(test.test))
+		if err := Unmarshal(test.want, got); err != nil {
+			t.Fatalf("%s: %v\n", test.name, err)
+		} else {
+			t.Logf("%s: ok\n", test.name)
 		}
-		if !b.EOF() {
-			t.Fatal("bytes remaining in buffer")
-		}
-		if !reflect.DeepEqual(test.want, n) {
-			t.Fatalf("%s: expected %T(%v), got %T(%v)", test.name, test.want, test.want, n, n)
-		}
+	}
+}
+
+func TestStruct(t *testing.T) {
+	var s = teststruct{0x7f,
+		math.MaxInt8, math.MaxInt16, math.MaxInt32, math.MaxInt64,
+		math.MaxUint8, math.MaxUint16, math.MaxUint32, math.MaxUint64,
+	}
+
+	b, err := Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b) == 0 {
+		t.Fatal("empty buffer")
+	}
+
+	t.Logf("bytes: %v\n", b)
+
+	d := teststruct{}
+	if err := Unmarshal(b, &d); err != nil {
+		t.Fatalf("unmarshal: %v\n", err)
+	}
+	if !reflect.DeepEqual(s, d) {
+		t.Fatalf("not equal %v and %v\n", s, d)
 	}
 }

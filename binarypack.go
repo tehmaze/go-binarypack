@@ -1,15 +1,7 @@
 // Package binarypack is almost msgpack, suitable for talking to binary.js
 package binarypack
 
-import (
-	"encoding/binary"
-	"fmt"
-	"io"
-	"math"
-	"reflect"
-	"time"
-)
-
+/*
 type BinaryPack struct {
 	cursor cursor
 }
@@ -129,9 +121,14 @@ func (b *BinaryPack) Marshal(v interface{}) error {
 	case time.Time:
 		return b.Marshal(t.Format("Mon Jan 02 2006 15:04:05") + " GMT" + t.Format("-0700 (MST)"))
 	default:
-		switch reflect.TypeOf(t).Kind() {
+		r := reflect.TypeOf(v)
+		if r.Kind() == reflect.Ptr {
+			r = r.Elem()
+		}
+
+		switch r.Kind() {
 		case reflect.Slice:
-			s := reflect.ValueOf(t)
+			s := reflect.ValueOf(v)
 			l := s.Len()
 			switch {
 			case l <= 0x0f:
@@ -174,10 +171,26 @@ func (b *BinaryPack) Marshal(v interface{}) error {
 			}
 			return nil
 
+		case reflect.Struct:
+			return b.marshalStruct(reflect.TypeOf(v))
 		}
 	}
 
 	return fmt.Errorf("binarypack: can't marshal %T", v)
+}
+
+func (b *BinaryPack) marshalStruct(t reflect.Type) error {
+	// Structs are marshaled as if they are a map.
+	var m = make(map[interface{}]interface{})
+
+	fields := typeFields(t)
+	log.Printf("fields: %v\n", fields)
+	for _, field := range fields {
+		v := t.FieldByIndex(field.index)
+		log.Printf("v: %v\n", v.Type.Align)
+	}
+
+	return b.Marshal(m)
 }
 
 // UnmarshalNext reads the next binarypack message from the buffer.
@@ -403,38 +416,4 @@ func (b *BinaryPack) writeUint64(u uint64) {
 	b.writeUint32(uint32(u >> 32))
 	b.writeUint32(uint32(u))
 }
-
-type cursor struct {
-	buffer []byte
-	cursor int
-}
-
-func (c *cursor) eof() bool {
-	return c.cursor == len(c.buffer)
-}
-
-func (c *cursor) next() (byte, error) {
-	if c.cursor >= len(c.buffer) {
-		return 0, io.EOF
-	}
-	var b = c.buffer[c.cursor]
-	c.cursor++
-	return b, nil
-}
-
-func (c *cursor) slice(n int) ([]byte, error) {
-	if c.cursor+n > len(c.buffer) {
-		return nil, io.EOF
-	}
-	var b = c.buffer[c.cursor : c.cursor+n]
-	c.cursor += n
-	return b, nil
-}
-
-func (c *cursor) write(b []byte) {
-	c.buffer = append(c.buffer, b...)
-}
-
-func (c *cursor) writeByte(b byte) {
-	c.buffer = append(c.buffer, b)
-}
+*/
