@@ -286,6 +286,8 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 		return newStructEncoder(t)
 	case reflect.Ptr:
 		return newPtrEncoder(t)
+	case reflect.Interface:
+		return interfaceEncoder
 	default:
 		return unsupportedTypeEncoder
 	}
@@ -400,6 +402,14 @@ func doubleEncoder(e *encodeState, v reflect.Value) {
 	}
 	e.WriteByte(Float64)
 	e.writeUint64(math.Float64bits(f))
+}
+
+func interfaceEncoder(e *encodeState, v reflect.Value) {
+	if v.IsNil() {
+		e.WriteByte(Nil)
+		return
+	}
+	e.reflectValue(v.Elem())
 }
 
 func uint8Encoder(e *encodeState, v reflect.Value) {
